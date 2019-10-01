@@ -1,75 +1,102 @@
-import React, {Component} from 'react';
+import React, { useState, useEffect } from "react";
 
-class MemeGenerator extends Component {
-  constructor() {
-    super()
-    this.state = {
-      topText: '',
-      bottomText: '',
-      randomImg: 'http://i.imgflip.com/1bij.jpg'
-    }
-    this.handleChange = this.handleChange.bind(this)
-    this.handleSubmit = this.handleSubmit.bind(this)
-  }
+function MemeGenerator(props) {
+  const [formValues, setFormValues] = useState({
+    topText: "",
+    bottomText: ""
+  });
+  const [randomImage, setRandomImage] = useState({
+    src: "",
+    alt: ""
+  });
+  const [memes, setMemes] = useState([]);
 
-  componentDidMount() {
-    fetch('https://api.imgflip.com/get_memes')
+  useEffect(() => {
+    // An effect runs, by default, on every render.
+    // You can dictate when the effect runs based on the dependency array,
+    // which is passed after the effect function as the second argument to
+    // useEffect. Any variable in the dependency array tells the component
+    // that this useEffect hook should only be called when that variable
+    // changes. So if you only want a side effect to run on the first render,
+    // (when the component initially mounts), you would pass an empty array.
+    // to indicate no dependency change should trigger this effect. This
+    // is similar to `componentDidMount`, so in the same way you would call
+    // side effects like subscriptions and data fetch requests in
+    // componentDidMount, you would call them in useEffect if you're using
+    // hooks.
+    fetch("https://api.imgflip.com/get_memes")
       .then(response => response.json())
       .then(response => {
-        const {memes} = response.data
-        console.log(memes)
-        this.setState({
-          allMemeImgs: memes
-        })
+        setMemes(response.data.memes);
       })
+
+    // If you are calling a subscription function that needs to be cleared,
+    // liken a setTimeout, remember you have to clean those up typically in
+    // componentWillUnmount in your class components. With hooks, you tell
+    // the effect to clean up by returning a function in that same effect.
+    // In this instance, we don't need a clean up, but if we did we would just
+    // do something like this:
+    return () => {
+      // window.clearTimeout(...);
+    };
+  }, []); // <<<< empty dependency array: only fetch on the first render!
+
+  // Let's use a second effect that runs any time the `memes` array changes,
+  // that way we can get a random image after the initial fetch is done.
+  // This could also come in handy if you had another action elsewhere in
+  // the app that fetched from a different source, for example.
+  useEffect(() => {
+    if (memes && memes.length) {
+      swapYoImage();
+    }
+  }, [memes]); // this effect changes only when the `memes` change!
+
+  function swapYoImage() {
+    const randNum = Math.floor(Math.random() * memes.length);
+    const src = memes[randNum].url;
+    const alt = memes[randNum].name;
+    setRandomImage({ src, alt });
   }
 
-  handleChange(event) {
-    const {name, value} = event.target
-    this.setState({
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setFormValues({
+      ...formValues,
       [name]: value
-    })
-  }
-  
-  handleSubmit(event) {
-    const randNum = Math.floor(Math.random() * this.state.allMemeImgs.length)
-    const randMemeImg = this.state.allMemeImgs[randNum].url
-    const randMemeAlt = this.state.allMemeImgs[randNum].name
-    this.setState({
-      randomImg: randMemeImg,
-      randomAlt: randMemeAlt
-    })
-    event.preventDefault();
+    });
   }
 
-  render() {
-    return (
-      <div>
-        <form className="meme-form" onSubmit={this.handleSubmit}>
-          <input 
-            type="text" 
-            placeholder="Top Text"
-            name="topText"
-            value={this.state.topText} 
-            onChange={this.handleChange}
-          />
-          <input 
-            type="text" 
-            placeholder="Bottom Text"
-            name="bottomText" 
-            value={this.state.bottomText} 
-            onChange={this.handleChange}
-          />
-          <button>Generate!</button>
-        </form>
-        <div className="meme">
-          <img src={this.state.randomImg} alt={this.state.randomAlt}/>
-          <h2 className="top">{this.state.topText}</h2>
-          <h2 className="bottom">{this.state.bottomText}</h2>
-        </div>
-      </div>
-    )
+  function handleSubmit(event) {
+    event.preventDefault();
+    swapYoImage();
   }
+
+  return (
+    <div>
+      <form className="meme-form" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Top Text"
+          name="topText"
+          value={formValues.topText}
+          onChange={handleChange}
+        />
+        <input
+          type="text"
+          placeholder="Bottom Text"
+          name="bottomText"
+          value={formValues.bottomText}
+          onChange={handleChange}
+        />
+        <button>Generate!</button>
+      </form>
+      <div className="meme">
+        <img src={randomImage.src} alt={randomImage.alt} />
+        <h2 className="top">{formValues.topText}</h2>
+        <h2 className="bottom">{formValues.bottomText}</h2>
+      </div>
+    </div>
+  );
 }
 
-export default MemeGenerator
+export default MemeGenerator;
